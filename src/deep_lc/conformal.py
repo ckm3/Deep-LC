@@ -5,10 +5,8 @@ import torch.nn as nn
 import torch.optim as optim
 import torch.utils.data as tdata
 import pandas as pd
-import time
 from tqdm import tqdm
 from conformal_utils import validate, get_logits_targets, sort_sum
-import pdb
 
 # Conformalize a model with a calibration set.
 # Save it to a file in .cache/modelname
@@ -51,6 +49,39 @@ class ConformalModel(nn.Module):
             S = gcq(scores, self.Qhat, I=I, ordered=ordered, cumsum=cumsum, penalties=self.penalties, randomized=randomized, allow_zero_sets=allow_zero_sets)
 
         return logits, S
+
+
+# Given a pre-computed conformal model
+class ConformalModelPrecomputed(nn.Module):
+    def __init__(self, model, lc_model, ps_model, T, Qhat, penalties, num_classes, randomized=True, allow_zero_sets=False):
+        super(ConformalModelPrecomputed, self).__init__()
+        self.model = model
+        self.lc_model = lc_model
+        self.ps_model = ps_model 
+        self.T = T
+        self.Qhat = Qhat
+        self.penalties = penalties
+        self.num_classes = num_classes
+        self.randomized=randomized
+        self.allow_zero_sets=allow_zero_sets
+
+    def forward(self, *args, randomized=None, allow_zero_sets=None, **kwargs):
+        if randomized == None:
+            randomized = self.randomized
+        if allow_zero_sets == None:
+            allow_zero_sets = self.allow_zero_sets
+        logits = self.model(*args, **kwargs)
+        
+        with torch.no_grad():
+            logits_numpy = logits.detach().cpu().numpy()
+            scores = softmax(logits_numpy/self.T.item(), axis=1)
+
+            I, ordered, cumsum = sort_sum(scores)
+
+            S = gcq(scores, self.Qhat, I=I, ordered=ordered, cumsum=cumsum, penalties=self.penalties, randomized=randomized, allow_zero_sets=allow_zero_sets)
+
+        return logits, S
+
 
 # Computes the conformal calibration
 def conformal_calibration(cmodel, calib_loader):
