@@ -150,6 +150,8 @@ def bin_timeseries(time, values, nbins):
     # cancel the warning here
     with np.errstate(divide="ignore", invalid="ignore"):
         binned_values = np.bincount(bin_index, weights=values) / np.bincount(bin_index)
+    # refill 0 to nan
+    binned_values[binned_values == 0] = np.nan
     # Create new time array
     bin_centers = 0.5 * (bin_edges[1:] + bin_edges[:-1])
 
@@ -169,15 +171,16 @@ def plot_phase_curve(
             time_data = np.asarray(time_data)
         if not isinstance(flux_data, np.ndarray):
             flux_data = np.asarray(flux_data)
-        length = len(flux_data[~np.isnan(flux_data)])
-        if length <= 1:
-            continue  # skip this segment
-        phase, new_flux_data = bin_timeseries((time_data / period) % 2, flux_data, 500)
+        flux = flux_data[~np.isnan(flux_data)]
+        time_data = time_data[~np.isnan(flux_data)]
+        if time_data.size == 0:
+            continue
+        # new_flux_data = flux_data[flux_data<3*np.nanstd(flux_data) + np.nanmean(flux_data)]
+        # time_data = time_data[flux_data<3*np.nanstd(flux_data) + np.nanmean(flux_data)]
+        phase, new_flux_data = bin_timeseries((time_data / period) % 2, flux, 500)
         new_flux_list.append(new_flux_data)
         phase_list.append(phase)
-        if np.isnan(np.nanmax(new_flux_data)):
-            continue
-        var_ranges.append(np.nanmax(new_flux_data) - np.nanmin(new_flux_data))
+        var_ranges.append((np.nanmax(new_flux_data)-np.nanmin(new_flux_data)) if ~np.isnan(new_flux_data).all() else 0)
 
     img = lc_to_image_array(
         phase_list,
@@ -187,10 +190,7 @@ def plot_phase_curve(
         cumulative=False,
         *kwargs,
     )
-    if np.all(img == 0):
-        return np.zeros(figure_pixel_size), 0
     img = (img - np.min(img)) / (np.max(img) - np.min(img))
-
     return img, np.mean(var_ranges)
 
 
@@ -318,6 +318,7 @@ def light_curve_preprocess(light_curve, multiband_FAP=False):
             [
                 freq_at_max_power,
                 period_at_max_power,
+                np.log10(fap100),
                 np.log10(var_ranges if var_ranges > 0 else 1),
             ]
         ).float()
@@ -457,6 +458,7 @@ def light_curve_preprocess(light_curve, multiband_FAP=False):
             [
                 freq_at_max_power,
                 period_at_max_power,
+                np.log10(fap100) if fap100 != 0 else fap100,
                 np.log10(var_ranges if var_ranges > 0 else 1),
             ]
         ).float()
