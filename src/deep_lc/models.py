@@ -137,7 +137,7 @@ class lc_component(nn.Module):
         if return_part_data:
             part_lc_list = []
         for i in range(batch):
-            lc = lc_list[i]
+            lc = lc_list[i].copy()
             selected_lc_range = set()
             if lc.shape[1] == 3:
                 for j in range(self.topN):
@@ -159,11 +159,14 @@ class lc_component(nn.Module):
                         lgamp = 0
                         if return_part_data:
                             part_lc_list.append([])
+                        continue
                     else:
                         if (
                             np.nanmin(selected_lc[:, 0]),
                             np.nanmax(selected_lc[:, 0]),
                         ) in selected_lc_range:
+                            if return_part_data:
+                                part_lc_list.append([])
                             continue
                         else:
                             selected_lc_range.add(
@@ -198,7 +201,8 @@ class lc_component(nn.Module):
                         )
                         time_length = max(time_length_1, time_length_2)
                         diff_t = np.diff(selected_lc[:, 0])
-                        minimum_gap = np.nanmedian(diff_t[diff_t > 0])
+                        # minimum_gap = np.nanmedian(diff_t[diff_t > 0])
+                        minimum_gap = np.nanmin(diff_t[diff_t>0.0013])
                         amp_1 = (
                             np.nanmax(selected_lc[selected_lc[:, 2] == 1][:, 1])
                             - np.nanmin(selected_lc[selected_lc[:, 2] == 1][:, 1])
@@ -272,11 +276,14 @@ class lc_component(nn.Module):
                         lgamp = 0
                         if return_part_data:
                             part_lc_list.append([])
+                        continue
                     else:
                         if (
                             np.nanmin(selected_lc[:, 0]),
                             np.nanmax(selected_lc[:, 0]),
                         ) in selected_lc_range:
+                            if return_part_data:
+                                part_lc_list.append([])
                             continue
                         else:
                             selected_lc_range.add(
@@ -286,7 +293,9 @@ class lc_component(nn.Module):
                                 )
                             )
                         time_length = selected_lc[-1, 0] - selected_lc[0, 0]
-                        minimum_gap = np.nanmedian(np.diff(selected_lc[:, 0]))
+                        diff_t = np.diff(selected_lc[:, 0])
+                        minimum_gap = np.nanmin(diff_t[diff_t>0.0013])
+                        # minimum_gap = np.nanmedian(np.diff(selected_lc[:, 0]))
                         lgamp = np.log10(
                             np.nanmax(selected_lc[:, 1]) - np.nanmin(selected_lc[:, 1])
                         )
@@ -395,10 +404,10 @@ class ps_component(nn.Module):
             ps_img
         )
 
-        # mask = np.array([0, 0, 0, 1, 1, 0, 1], dtype=bool)
-        # ps_params_out = ps_params[:, mask]
+        mask = np.array([1, 1, 0, 1], dtype=bool)
+        ps_params_out = ps_params[:, mask]
         _, _, _, _, phase_feature = self.pretrained_model(phase_img)
-        ps_feature_out = torch.cat([ps_feature, ps_params, phase_feature], dim=1)
+        ps_feature_out = torch.cat([ps_feature, ps_params_out, phase_feature], dim=1)
         resnet_out = self.fc(ps_feature_out)
 
         batch = ps_img.size(0)
@@ -438,17 +447,21 @@ class ps_component(nn.Module):
             part_ps_list = []
 
         for i in range(batch):
-            ps = ps_list[i]
-            lc = lc_list[i]
+            ps = ps_list[i].copy()
+            lc = lc_list[i].copy()
             fap100 = ps_params[i, 2].item()
             selected_ps_range = set()
             for j in range(self.topN):
                 [x0, x1] = top_n_cdds[i][j, 1:3]  # they are relative ratio of the image
                 x0 = np.max([0, x0])
                 x1 = np.min([1, x1])
+                # freq_x0 = 10**(x0 * np.log10(ps[0, -1]/ps[0, 0]) + np.log10(ps[0, 0]))
+                # freq_x1 = 10**(x1 * np.log10(ps[0, -1]/ps[0, 0]) + np.log10(ps[0, 0]))
+                # selected_ps = ps[
+                #     (ps[:, 0] >= freq_x0) & (ps[:, 0] <= freq_x1)
+                # ]
                 selected_ps = ps[int(x0 * len(ps)) : int(x1 * len(ps)), :]
                 selected_ps_no_nan = selected_ps[~np.isnan(selected_ps[:, 1])]
-
                 if len(selected_ps_no_nan) <= 2 or np.all(
                     selected_ps[:, 1] == selected_ps[0, 1]
                 ):
@@ -458,6 +471,7 @@ class ps_component(nn.Module):
                     power_max = 0
                     if return_part_data:
                         part_ps_list.append([])
+                    continue
                 else:
                     freq_at_max_power = selected_ps[np.argmax(selected_ps[:, 1]), 0]
                     if freq_at_max_power in selected_ps_range:
@@ -468,12 +482,13 @@ class ps_component(nn.Module):
                         selected_ps_range.add(freq_at_max_power)
                     period_at_max_power = 1 / freq_at_max_power
                     power_max = selected_ps[:, 1].max()
-                    if return_part_data:
-                        part_ps_list.append(selected_ps)
                 if 10**fap100 > power_max and fap100 != 0:
-                    part_imgs[i : i + 1, j] = np.zeros((1, 224, 448))
-                    phase_img = np.zeros((1, 224, 224))
+                    # part_imgs[i : i + 1, j] = np.zeros((1, 224, 448))
+                    # phase_img = np.zeros((1, 224, 224))
                     var_ranges = 0
+                    if return_part_data:
+                        part_ps_list.append([])
+                    continue
                 else:
                     if lc.shape[1] == 3:
                         phase_img, var_ranges = plot_phase_curve(
@@ -483,6 +498,8 @@ class ps_component(nn.Module):
                             * (10**fap100 < power_max if fap100 != 0 else True),
                             figure_pixel_size=(224, 224),
                         )
+                        if return_part_data:
+                            part_ps_list.append(selected_ps)
                     else:
                         phase_img, var_ranges = plot_phase_curve(
                             [lc[:, 0]],
@@ -491,6 +508,8 @@ class ps_component(nn.Module):
                             * (10**fap100 < power_max if fap100 != 0 else True),
                             figure_pixel_size=(224, 224),
                         )
+                        if return_part_data:
+                            part_ps_list.append(selected_ps)
                 part_phase_imgs[i : i + 1, j] = phase_img.reshape(1, 224, 224)
                 part_ps_params[i : i + 1, j] = np.array(
                     [
