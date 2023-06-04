@@ -5,6 +5,7 @@ from .models import lc_component, ps_component, parameter_component, combined_ne
 from .config import PROPOSAL_NUM, LABELS
 import matplotlib.pyplot as plt
 import matplotlib
+from .conformal import ConformalModelPrecomputed
 
 
 class DeepLC:
@@ -12,10 +13,11 @@ class DeepLC:
 
     def __init__(
         self,
+        combined_model=None,
         lc_component_model=None,
         ps_component_model=None,
         parameter_model=None,
-        combined_model=None,
+        conformal_calibration=False,
         device="auto",
     ) -> None:
         """Initialize the classifier.
@@ -30,6 +32,8 @@ class DeepLC:
             path to the parameter model, by default None
         combined_model : str, optional
             path to the combined model, by default None
+        conformal_calibration : bool, optional
+            whether to use conformal calibration, by default False
         device : str, optional
             device of the model, by default 'auto'
         """
@@ -54,17 +58,29 @@ class DeepLC:
         if combined_model:
             self.loaded_model = "Combined"
             if isinstance(combined_model, str):
-                self.model_dict = torch.load(combined_model)
+                self.model_dict = torch.load(combined_model, map_location=self.device)
             elif isinstance(combined_model, dict):
                 self.model_dict = combined_model
-            # self.nclasses = self.model_dict["nclasses"]
+            
+            self.nclasses = self.model_dict["num_classes"]
+            
+            if conformal_calibration and "T" in self.model_dict.keys():
+                self.use_conformal_calibration = True
+                self.T = self.model_dict["T"]
+                self.Qhat = self.model_dict["Qhat"]
+                self.penalties = self.model_dict["penalties"]
+            else:
+                self.use_conformal_calibration = False
+            
             self.lc_model = lc_component(
                 topN=PROPOSAL_NUM, nclasses=len(LABELS), device=self.device
             )
             self.ps_model = ps_component(
                 topN=PROPOSAL_NUM, nclasses=len(LABELS), device=self.device
             )
+            
             # TODO self.parameter_model = parameter_component()
+            
             self.model = combined_net(nclasses=len(LABELS))
             self.lc_model.load_state_dict(self.model_dict["lc_net_state_dict"])
             self.ps_model.load_state_dict(self.model_dict["ps_net_state_dict"])
@@ -75,23 +91,65 @@ class DeepLC:
             self.ps_model.eval()
         elif lc_component_model:
             self.loaded_model = "LC Component"
-            self.model_dict = torch.load(lc_component_model)["net_state_dict"]
+            if isinstance(lc_component_model, str):
+                self.model_dict = torch.load(lc_component_model, map_location=self.device)
+            elif isinstance(lc_component_model, dict):
+                self.model_dict = lc_component_model
+            
+            self.nclasses = self.model_dict["num_classes"]
+            
+            if conformal_calibration and "T" in self.model_dict.keys():
+                self.use_conformal_calibration = True
+                self.T = self.model_dict["T"]
+                self.Qhat = self.model_dict["Qhat"]
+                self.penalties = self.model_dict["penalties"]
+            else:
+                self.use_conformal_calibration = False
+            
             self.model = lc_component(
                 topN=PROPOSAL_NUM, nclasses=len(LABELS), device=self.device
             )
-            self.model.load_state_dict(self.model_dict)
+            self.model.load_state_dict(self.model_dict["net_state_dict"])
         elif ps_component_model:
             self.loaded_model = "PS Component"
-            self.model_dict = torch.load(ps_component_model)["net_state_dict"]
+            if isinstance(ps_component_model, str):
+                self.model_dict = torch.load(ps_component_model, map_location=self.device)
+            elif isinstance(ps_component_model, dict):
+                self.model_dict = ps_component_model
+            
+            self.nclasses = self.model_dict["num_classes"]
+            
+            if conformal_calibration and "T" in self.model_dict.keys():
+                self.use_conformal_calibration = True
+                self.T = self.model_dict["T"]
+                self.Qhat = self.model_dict["Qhat"]
+                self.penalties = self.model_dict["penalties"]
+            else:
+                self.use_conformal_calibration = False
+            
             self.model = ps_component(
                 topN=PROPOSAL_NUM, nclasses=len(LABELS), device=self.device
             )
-            self.model.load_state_dict(self.model_dict)
+            self.model.load_state_dict(self.model_dict["net_state_dict"])
         elif parameter_model:
             self.loaded_model = "Parameter Component"
-            self.model_dict = torch.load(parameter_model)["net_state_dict"]
+            if isinstance(parameter_model, str):
+                self.model_dict = torch.load(parameter_model)
+            elif isinstance(parameter_model, dict):
+                self.model_dict = parameter_model
+            
+            self.nclasses = self.model_dict["num_classes"]
+            
+            if conformal_calibration and "T" in self.model_dict.keys():
+                self.use_conformal_calibration = True
+                self.T = self.model_dict["T"]
+                self.Qhat = self.model_dict["Qhat"]
+                self.penalties = self.model_dict["penalties"]
+            else:
+                self.use_conformal_calibration = False
+            
             self.model = parameter_component(nclasses=len(LABELS))
-            self.model.load_state_dict(self.model_dict)
+            self.model.load_state_dict(self.model_dict["net_state_dict"])
 
         self.model.to(self.device)
         self.model.eval()
@@ -101,7 +159,8 @@ class DeepLC:
         light_curve,
         show_intermediate_results=False,
         return_intermediate_data=False,
-        conformal_predictive_sets=False,
+        return_conformal_predictive_sets=False,
+        return_ood_criteria=False,
     ):
         """Classify the light curve data.
 
@@ -114,7 +173,7 @@ class DeepLC:
             whether to show intermediate results, by default False
         return_intermediate_data : bool, optional
             whether to return intermediate data, by default False
-        conformal_predictive_sets : bool, optional
+        return_conformal_predictive_sets : bool, optional
             whether to return conformal predictive sets, by default False
         """
         (
@@ -135,9 +194,22 @@ class DeepLC:
         ps_param = ps_param.unsqueeze(0).to(self.device)
         lc_data = [lc_data]
         ps_data = [ps_data]
-        light_curve = np.asanyarray(light_curve)
 
         if self.loaded_model == "Combined":
+            if self.use_conformal_calibration and return_conformal_predictive_sets:
+                cmodel = ConformalModelPrecomputed(
+                    self.model,
+                    self.T,
+                    self.Qhat,
+                    self.penalties,
+                    self.nclasses,
+                    allow_zero_sets=True,
+                )
+                cmodel.to(self.device)
+                cmodel.eval()
+            else:
+                cmodel = self.model
+
             if show_intermediate_results or return_intermediate_data:
                 (
                     lc_concat_out,
@@ -170,24 +242,48 @@ class DeepLC:
                     folded_img,
                     None,
                     ps_param,
-                    lc_data,
+                    lc_data.copy(),
                     ps_data,
                     return_part_data=True,
                 )
-                concat_logits = self.model(lc_concat_out, ps_concat_out)
-                predicted_label = LABELS[torch.argmax(concat_logits, 1)]
+
+                if return_conformal_predictive_sets:
+                    concat_logits, sets = cmodel(lc_concat_out, ps_concat_out)
+                    predicted_label = [LABELS[s] for s in sets[0]]
+                else:
+                    concat_logits = cmodel(lc_concat_out, ps_concat_out)
+                    predicted_label = LABELS[torch.argmax(concat_logits, 1)]
 
                 if return_intermediate_data:
                     return predicted_label, (
-                        lc_raw_logits,
-                        lc_concat_logits,
-                        lc_part_logits,
+                        lc_raw_logits.cpu().detach().numpy(),
+                        lc_concat_logits.cpu().detach().numpy(),
+                        lc_part_logits.cpu().detach().numpy(),
                         part_lc_list,
-                        ps_raw_logits,
-                        ps_concat_logits,
-                        ps_part_logits,
+                        ps_raw_logits.cpu().detach().numpy(),
+                        ps_concat_logits.cpu().detach().numpy(),
+                        ps_part_logits.cpu().detach().numpy(),
                         part_ps_list,
                     )
+                elif not return_intermediate_data and show_intermediate_results:
+                    figs = self.plot_intermediate_data(
+                        (
+                            ps_param.cpu().detach().numpy(),
+                            lc_data,
+                            ps_data,
+                            lc_raw_logits.cpu().detach().numpy(),
+                            lc_concat_logits.cpu().detach().numpy(),
+                            lc_part_logits.cpu().detach().numpy(),
+                            part_lc_list,
+                            part_lc_params.cpu().detach().numpy(),
+                            ps_raw_logits.cpu().detach().numpy(),
+                            ps_concat_logits.cpu().detach().numpy(),
+                            ps_part_logits.cpu().detach().numpy(),
+                            part_ps_list,
+                            part_ps_params.cpu().detach().numpy(),
+                        )
+                    )
+                    return predicted_label, figs
 
                 figs = self.plot_intermediate_data(
                     (
@@ -206,7 +302,16 @@ class DeepLC:
                         part_ps_params.cpu().detach().numpy(),
                     )
                 )
-                return predicted_label, figs
+                return predicted_label, (
+                        lc_raw_logits.cpu().detach().numpy(),
+                        lc_concat_logits.cpu().detach().numpy(),
+                        lc_part_logits.cpu().detach().numpy(),
+                        part_lc_list,
+                        ps_raw_logits.cpu().detach().numpy(),
+                        ps_concat_logits.cpu().detach().numpy(),
+                        ps_part_logits.cpu().detach().numpy(),
+                        part_ps_list,
+                    ), figs
 
             else:
                 lc_concat_out = self.lc_model(
@@ -231,8 +336,12 @@ class DeepLC:
                     return_part_data=False,
                     combined_mode=True,
                 )
-                concat_logits = self.model(lc_concat_out, ps_concat_out)
-                predicted_label = LABELS[torch.argmax(concat_logits, 1)]
+                if return_conformal_predictive_sets:
+                    concat_logits, sets = cmodel(lc_concat_out, ps_concat_out)
+                    predicted_label = [LABELS[s] for s in sets[0]]
+                else:
+                    concat_logits = cmodel(lc_concat_out, ps_concat_out)
+                    predicted_label = LABELS[torch.argmax(concat_logits, 1)]
 
                 return predicted_label
 
@@ -456,7 +565,7 @@ def plot_lc_component(
     fig1, ax = plt.subplots(
         int((sub_lc_num + 1) / 2) + 1,
         2,
-        figsize=(8, (sub_lc_num + 1) + 2),
+        figsize=(6, (sub_lc_num + 1) + 2),
         dpi=300,
         constrained_layout=True,
         gridspec_kw={"height_ratios": ratio_list},
@@ -499,9 +608,10 @@ def plot_lc_component(
             ax[i // 2 + 1, i % 2].set_title(f"{selected_lc_labels[i]}")
     else:
         bands = np.unique(lc_data[:, 3])
+        # currently we only support 2 bands
         multiband_colors = [
-            matplotlib.colormaps["binary"](i / (len(bands) + 1))
-            for i in range(len(bands) + 1)
+            matplotlib.colormaps["binary"](i / (2 + 1))
+            for i in range(2 + 1)
         ]
 
         for band in bands:
@@ -517,7 +627,7 @@ def plot_lc_component(
         ax_lc.set_title(f"{predicted_label} ({predicted_raw_lable})")
         # plot vspans for selected light curves
         for i, lc in enumerate(selected_lc_list):
-            ax_lc.axvspan(lc[0, 0], lc[-1, 0], color=colors[i], alpha=0.3)
+            ax_lc.axvspan(lc[:, 0].min(), lc[:, 0].max(), color=colors[i], alpha=0.3)
             # plot selected light curves
             for band in bands:
                 band_mask = lc[:, 3] == band
@@ -561,11 +671,11 @@ def plot_ps_component(
     lc_data = lc_data[0]
 
     period = ps_param[0, 1]
-    # folded_lc_var = ps_param[0, 2]
+    lg_fap100 = ps_param[0, 2]
 
     phase_list, flux_list = fold_lightcurve(lc_data, period)
 
-    ps_mask = np.any(part_ps_params != 0, axis=1)
+    ps_mask = np.all(part_ps_params != 0, axis=1)
 
     ps_panel_num = sum(ps_mask)
     indices = np.where(ps_mask)[0]
@@ -588,19 +698,24 @@ def plot_ps_component(
     colors = [matplotlib.colormaps["Dark2"](i / 6) for i in range(6)]
 
     if lc_data.shape[1] > 2:
-        bands = np.unique(lc_data[:, 3])
+        # bands = np.unique(lc_data[:, 3])
         multiband_colors = [
-            matplotlib.colormaps["binary"](i / (len(bands) + 1))
-            for i in range(len(bands) + 1)
+            matplotlib.colormaps["binary"](i / (2 + 1))
+            for i in range(2 + 1)
         ]
     else:
-        bands = [0]
+        # bands = [0]
         multiband_colors = ["k"] * 2
 
-    ax[0, 0].loglog(ps_data[:, 0], ps_data[:, 1], "k-", lw=1)
+    ax[0, 0].plot(ps_data[:, 0], ps_data[:, 1], "k-", lw=1)
+    if lg_fap100 != 0:
+        ax[0, 0].axhline(10**lg_fap100, color="r", ls="--", lw=1)
+    ax[0, 0].set_yscale('log')
     ax[0, 0].set_ylabel("Amp")
     ax[0, 0].set_title(f"{predicted_label}")
     for band, (phase, flux) in enumerate(zip(phase_list, flux_list)):
+        if len(phase) == 0:
+            continue
         new_phase, new_flux = bin_timeseries(phase, flux, 512)
         ax[0, 1].plot(
             new_phase,
@@ -615,7 +730,8 @@ def plot_ps_component(
     for i, ps in enumerate(selected_ps_list):
         ax[0, 0].axvspan(ps[0, 0], ps[-1, 0], color=colors[i], alpha=0.5)
         # plot selected light curves
-        ax[i + 1, 0].loglog(ps[:, 0], ps[:, 1], "-", color=colors[i], lw=1)
+        ax[i + 1, 0].plot(ps[:, 0], ps[:, 1], "-", color=colors[i], lw=1)
+        ax[i + 1, 0].set_yscale('log')
         ax[i + 1, 0].set_ylabel("Amp")
         # set x tick labels to only the start point and the end point
         ax[i + 1, 0].set_xticks([ps[0, 0], ps[-1, 0]])
@@ -623,6 +739,8 @@ def plot_ps_component(
         period = selected_ps_params[i][1]
         phase_list, flux_list = fold_lightcurve(lc_data, period)
         for band, (phase, flux) in enumerate(zip(phase_list, flux_list)):
+            if len(phase) == 0:
+                continue
             new_phase, new_flux = bin_timeseries(phase, flux, 512)
             ax[i + 1, 1].plot(
                 new_phase,
