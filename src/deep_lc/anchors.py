@@ -8,21 +8,18 @@ lc_anchors_setting = (
         stride=32,
         size=32,
         scale=np.linspace(1, 2, 3, endpoint=False),
-        aspect_ratio=[1],
     ),
     dict(
         layer="p4",
         stride=64,
         size=64,
         scale=np.linspace(1, 2, 3, endpoint=False),
-        aspect_ratio=[1],
     ),
     dict(
         layer="p5",
         stride=128,
         size=128,
         scale=np.linspace(1, 2, 3),
-        aspect_ratio=[1],
     ),
 )
 
