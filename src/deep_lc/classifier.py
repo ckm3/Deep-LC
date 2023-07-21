@@ -157,6 +157,7 @@ class DeepLC:
     def predict(
         self,
         light_curve,
+        multiband_FAP=False,
         show_intermediate_results=False,
         return_intermediate_data=False,
         return_conformal_predictive_sets=False,
@@ -184,7 +185,7 @@ class DeepLC:
             ps_param,
             lc_data,
             ps_data,
-        ) = light_curve_preprocess(light_curve)
+        ) = light_curve_preprocess(light_curve, multiband_FAP=multiband_FAP)
 
         # move them to the corresponding device
         lc_img = lc_img.unsqueeze(0).to(self.device)
@@ -566,7 +567,7 @@ def plot_lc_component(
         int((sub_lc_num + 1) / 2) + 1,
         2,
         figsize=(6, (sub_lc_num + 1) + 2),
-        dpi=300,
+        dpi=90,
         constrained_layout=True,
         gridspec_kw={"height_ratios": ratio_list},
     )
@@ -688,7 +689,7 @@ def plot_ps_component(
         ps_panel_num + 1,
         2,
         figsize=(6, (ps_panel_num + 1) * 1.5 + 2),
-        dpi=300,
+        dpi=90,
         constrained_layout=True,
     )
 
