@@ -80,8 +80,15 @@ def light_curve_preparation(time, flux, flux_err=None, bands=None, magnitude_or_
             if flux_err is None:
                 flux_err = np.zeros_like(flux)
             for i in np.unique(bands):
-                temp_flux = flux[bands==i]
-                temp_flux_err = flux_err[bands==i]
+                flux_median = np.nanmedian(flux[bands==i])
+                if np.isclose(flux_median, 0, rtol=1e-5):
+                    temp_flux = flux[bands==i]
+                    temp_flux_err = flux_err[bands==i]
+                else:
+                    flux_uarray = unumpy.uarray(flux[bands==i], flux_err[bands==i])
+                    rel_flux = (flux_uarray - np.nanmedian(flux_uarray)) / np.abs(np.nanmedian(flux_uarray))
+                    temp_flux = unumpy.nominal_values(rel_flux)
+                    temp_flux_err = unumpy.std_devs(rel_flux)
                 multiband_list.append(np.array([time[bands==i], temp_flux, temp_flux_err, bands[bands==i]]).T)
             processed_array = np.concatenate(multiband_list, axis=0)
             if np.all(flux_err==0):
