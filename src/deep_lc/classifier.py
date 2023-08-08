@@ -73,15 +73,15 @@ class DeepLC:
                 self.use_conformal_calibration = False
             
             self.lc_model = lc_component(
-                topN=PROPOSAL_NUM, nclasses=len(LABELS), device=self.device
+                topN=PROPOSAL_NUM, nclasses=self.nclasses, device=self.device
             )
             self.ps_model = ps_component(
-                topN=PROPOSAL_NUM, nclasses=len(LABELS), device=self.device
+                topN=PROPOSAL_NUM, nclasses=self.nclasses, device=self.device
             )
             
             # TODO self.parameter_model = parameter_component()
             
-            self.model = combined_net(nclasses=len(LABELS))
+            self.model = combined_net(nclasses=self.nclasses)
             self.lc_model.load_state_dict(self.model_dict["lc_net_state_dict"])
             self.ps_model.load_state_dict(self.model_dict["ps_net_state_dict"])
             self.model.load_state_dict(self.model_dict["net_state_dict"])
@@ -107,7 +107,7 @@ class DeepLC:
                 self.use_conformal_calibration = False
             
             self.model = lc_component(
-                topN=PROPOSAL_NUM, nclasses=len(LABELS), device=self.device
+                topN=PROPOSAL_NUM, nclasses=self.nclasses, device=self.device
             )
             self.model.load_state_dict(self.model_dict["net_state_dict"])
         elif ps_component_model:
@@ -128,7 +128,7 @@ class DeepLC:
                 self.use_conformal_calibration = False
             
             self.model = ps_component(
-                topN=PROPOSAL_NUM, nclasses=len(LABELS), device=self.device
+                topN=PROPOSAL_NUM, nclasses=self.nclasses, device=self.device
             )
             self.model.load_state_dict(self.model_dict["net_state_dict"])
         elif parameter_model:
@@ -148,7 +148,7 @@ class DeepLC:
             else:
                 self.use_conformal_calibration = False
             
-            self.model = parameter_component(nclasses=len(LABELS))
+            self.model = parameter_component(nclasses=self.nclasses)
             self.model.load_state_dict(self.model_dict["net_state_dict"])
 
         self.model.to(self.device)

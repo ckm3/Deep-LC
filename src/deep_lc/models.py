@@ -357,9 +357,12 @@ class lc_component(nn.Module):
             return concat_out
         else:
             return [
+                concat_out,
                 raw_logits,
                 concat_logits,
                 part_logits,
+                top_n_prob,
+                torch.tensor(part_lc_params_raw[..., 0], device=self.device),
             ]
 
 
@@ -572,9 +575,12 @@ class ps_component(nn.Module):
             return concat_out
         else:
             return [
+                concat_out,
                 raw_logits,
                 concat_logits,
                 part_logits,
+                top_n_prob,
+                torch.tensor(part_ps_params[..., 2], device=self.device)
             ]
 
 

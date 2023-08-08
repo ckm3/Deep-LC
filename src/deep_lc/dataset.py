@@ -282,16 +282,15 @@ def light_curve_preprocess(light_curve, multiband_FAP=False):
 
         ls = LombScargle(ls_lc[:, 0], ls_lc[:, 1], normalization="standard")
         freq, power = ls.autopower(
-            minimum_frequency=1 / (ls_lc[-1, 0] - ls_lc[0, 0]),
+            minimum_frequency=2 / (ls_lc[-1, 0] - ls_lc[0, 0]),
             maximum_frequency=1 / minimum_cadence / 2,
-            samples_per_peak=2,
-            nyquist_factor=2,
+            samples_per_peak=5,
         )
         freq_at_max_power = freq[np.argmax(power)]
         period_at_max_power = 1 / freq_at_max_power
         fap100 = ls.false_alarm_level(
             1e-2,
-            minimum_frequency=1 / (ls_lc[-1, 0] - ls_lc[0, 0]),
+            minimum_frequency=2 / (ls_lc[-1, 0] - ls_lc[0, 0]),
             maximum_frequency=1 / minimum_cadence / 2,
         ).item()
 
@@ -472,3 +471,46 @@ def light_curve_preprocess(light_curve, multiband_FAP=False):
         transformed_lc_data,
         np.array([freq, power]).T,
     )
+
+
+def data_collate_fn(batch):
+    img = torch.stack([item[0] for item in batch])
+    ps_img = torch.stack([item[1] for item in batch])
+    phase_img = torch.stack([item[2] for item in batch])
+    lc_param = torch.stack([item[3] for item in batch])
+    ps_param = torch.stack([item[4] for item in batch])
+    label = torch.tensor([item[5] for item in batch])
+    lc_data = [item[6] for item in batch]
+    ps_data = [item[7] for item in batch]
+    params_data = torch.tensor([item[8] for item in batch])
+    return img, ps_img, phase_img, lc_param, ps_param, label, lc_data, ps_data
+
+
+class LocalDataset(torch.utils.data.Dataset):
+    def __init__(
+        self,
+        lcs,
+        labels,
+        parameters=None,
+    ):
+        self.lcs = lcs
+        self.labels = labels
+        self.parameters = parameters
+
+    def __len__(self):
+        return len(self.lcs)
+
+    def __getitem__(self, idx):
+        lc = self.lcs[idx]
+        params = self.parameters[idx]
+        label = self.labels[idx]
+
+        (lc_img,
+        ps_img,
+        phase_img,
+        lc_param,
+        ps_param,
+        lc_data,
+        ps_data,) = light_curve_preprocess(lc)
+
+        return lc_img, ps_img, phase_img, lc_param, ps_param, label, lc_data, ps_data, params
