@@ -357,7 +357,7 @@ def light_curve_preprocess(light_curve, multiband_FAP=False):
                 transformed_lc_data[filter_mask1][:, 1],
             )
             diff_t1 = np.diff(transformed_lc_data[filter_mask1][:, 0])
-            minimum_cadence1 = diff_t1[diff_t1<(2/60/24)].min()
+            minimum_cadence1 = diff_t1[diff_t1>(2/60/24)].min()
         else:
             time_length_1 = 0
             lgamp_1 = np.nan

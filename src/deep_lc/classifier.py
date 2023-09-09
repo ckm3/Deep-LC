@@ -97,11 +97,11 @@ class DeepLC:
         self.model.eval()
 
     def predict(
-        self, 
-        light_curve, 
-        show_intermediate_results=False, 
+        self,
+        light_curve,
+        show_intermediate_results=False,
         return_intermediate_data=False,
-        conformal_predictive_sets=False
+        conformal_predictive_sets=False,
     ):
         """Classify the light curve data.
 
@@ -176,7 +176,7 @@ class DeepLC:
                 )
                 concat_logits = self.model(lc_concat_out, ps_concat_out)
                 predicted_label = LABELS[torch.argmax(concat_logits, 1)]
-                
+
                 if return_intermediate_data:
                     return predicted_label, (
                         lc_raw_logits,
@@ -188,7 +188,7 @@ class DeepLC:
                         ps_part_logits,
                         part_ps_list,
                     )
-                
+
                 figs = self.plot_intermediate_data(
                     (
                         ps_param.cpu().detach().numpy(),
@@ -233,7 +233,7 @@ class DeepLC:
                 )
                 concat_logits = self.model(lc_concat_out, ps_concat_out)
                 predicted_label = LABELS[torch.argmax(concat_logits, 1)]
-                
+
                 return predicted_label
 
         elif self.loaded_model == "LC Component":
@@ -262,7 +262,8 @@ class DeepLC:
                         lc_raw_logits,
                         lc_concat_logits,
                         lc_part_logits,
-                        part_lc_list)
+                        part_lc_list,
+                    )
 
                 fig = self.plot_intermediate_data(
                     (
@@ -304,14 +305,15 @@ class DeepLC:
                     return_part_data=True,
                 )
                 predicted_label = LABELS[torch.argmax(ps_concat_logits, 1)]
-                
+
                 if return_intermediate_data:
                     return predicted_label, (
                         ps_raw_logits,
                         ps_concat_logits,
                         ps_part_logits,
-                        part_ps_list)
-                
+                        part_ps_list,
+                    )
+
                 fig = self.plot_intermediate_data(
                     (
                         lc_data,
@@ -448,13 +450,13 @@ def plot_lc_component(
     selected_lc_list = [part_lc_list[i] for i in indices]
     selected_lc_labels = [predicted_part_labels[i] for i in indices]
 
-    ratio_list = [1]*(int((sub_lc_num + 1) / 2) + 1)
+    ratio_list = [1] * (int((sub_lc_num + 1) / 2) + 1)
     ratio_list[0] = 2
 
     fig1, ax = plt.subplots(
         int((sub_lc_num + 1) / 2) + 1,
         2,
-        figsize=(8, (sub_lc_num + 1)+2),
+        figsize=(8, (sub_lc_num + 1) + 2),
         dpi=300,
         constrained_layout=True,
         gridspec_kw={"height_ratios": ratio_list},
@@ -475,18 +477,32 @@ def plot_lc_component(
         ax[-1, 0] = fig1.add_subplot(gs2[-1, :])
 
     if lc_data.shape[1] == 2:
-        ax_lc.plot(lc_data[:, 0], lc_data[:, 1], "k.", ms=1)
+        ax_lc.plot(
+            lc_data[:, 0],
+            lc_data[:, 1],
+            "k.",
+            ms=np.round(10 / np.log10(len(lc_data[:, 0])+10), 1),
+        )
         ax_lc.set_title(f"{predicted_label} ({predicted_raw_lable})")
         # plot vspans for selected light curves
         for i, lc in enumerate(selected_lc_list):
             ax_lc.axvspan(lc[0, 0], lc[-1, 0], color=colors[i], alpha=0.3)
             # plot selected light curves
-            ax[i // 2 + 1, i % 2].plot(lc[:, 0], lc[:, 1], ".", color=colors[i], ms=1)
+            ax[i // 2 + 1, i % 2].plot(
+                lc[:, 0],
+                lc[:, 1],
+                ".",
+                color=colors[i],
+                ms=np.round(10 / np.log10(len(lc[:, 0])+10), 1),
+            )
             # show parameters
             ax[i // 2 + 1, i % 2].set_title(f"{selected_lc_labels[i]}")
     else:
         bands = np.unique(lc_data[:, 3])
-        multiband_colors = [matplotlib.colormaps["binary"](i / (len(bands)+1)) for i in range(len(bands)+1)]
+        multiband_colors = [
+            matplotlib.colormaps["binary"](i / (len(bands) + 1))
+            for i in range(len(bands) + 1)
+        ]
 
         for band in bands:
             band_mask = lc_data[:, 3] == band
@@ -494,7 +510,7 @@ def plot_lc_component(
                 lc_data[band_mask, 0],
                 lc_data[band_mask, 1],
                 ".",
-                ms=5,
+                ms=np.round(10 / np.log10(len(lc_data[band_mask, 0])+10), 1),
                 # color is a grey scale for different bands
                 color=multiband_colors[int(band)],
             )
@@ -510,11 +526,11 @@ def plot_lc_component(
                     lc[band_mask, 1],
                     ".",
                     color=multiband_colors[int(band)],
-                    ms=5,
+                    ms=np.round(10 / np.log10(len(lc[band_mask, 0])+10), 1),
                 )
             # show parameters
             ax[i // 2 + 1, i % 2].set_title(f"{selected_lc_labels[i]}", color=colors[i])
-    
+
     # all the y axis are scientific notation
     ax_lc.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
     for a in ax.flatten():
@@ -561,46 +577,71 @@ def plot_ps_component(
     fig2, ax = plt.subplots(
         ps_panel_num + 1,
         2,
-        figsize=(6, (ps_panel_num + 1)*1.5+2),
+        figsize=(6, (ps_panel_num + 1) * 1.5 + 2),
         dpi=300,
         constrained_layout=True,
     )
+
+    if ps_panel_num == 0:
+        ax = ax.reshape(-1, 2)
+
     colors = [matplotlib.colormaps["Dark2"](i / 6) for i in range(6)]
-    
+
     if lc_data.shape[1] > 2:
         bands = np.unique(lc_data[:, 3])
-        multiband_colors = [matplotlib.colormaps["binary"](i / (len(bands)+1)) for i in range(len(bands)+1)]
+        multiband_colors = [
+            matplotlib.colormaps["binary"](i / (len(bands) + 1))
+            for i in range(len(bands) + 1)
+        ]
     else:
         bands = [0]
-        multiband_colors = ["k"]*2
-    
-    ax[0, 0].plot(ps_data[:, 0], ps_data[:, 1], "k-", ms=1)
+        multiband_colors = ["k"] * 2
+
+    ax[0, 0].loglog(ps_data[:, 0], ps_data[:, 1], "k-", lw=1)
     ax[0, 0].set_ylabel("Amp")
     ax[0, 0].set_title(f"{predicted_label}")
     for band, (phase, flux) in enumerate(zip(phase_list, flux_list)):
-        # ax[0, 1].plot(phase, flux, "k.", ms=0.1)
         new_phase, new_flux = bin_timeseries(phase, flux, 512)
-        ax[0, 1].plot(new_phase, new_flux, ".", ms=3, color=multiband_colors[int(band)+1] )
-    ax[0, 1].set_title(f"{predicted_raw_lable} ({period:.2f} days)", loc='right', pad=0)
-    
+        ax[0, 1].plot(
+            new_phase,
+            new_flux,
+            ".",
+            ms=np.round(10 / np.log10(len(new_phase)+10), 1),
+            color=multiband_colors[int(band) + 1],
+        )
+    ax[0, 1].set_title(f"{predicted_raw_lable} ({period:.2f} days)", loc="right", pad=0)
 
     # plot vspans for selected light curves
     for i, ps in enumerate(selected_ps_list):
         ax[0, 0].axvspan(ps[0, 0], ps[-1, 0], color=colors[i], alpha=0.5)
         # plot selected light curves
-        ax[i + 1, 0].plot(ps[:, 0], ps[:, 1], "-", color=colors[i], ms=1)
+        ax[i + 1, 0].loglog(ps[:, 0], ps[:, 1], "-", color=colors[i], lw=1)
         ax[i + 1, 0].set_ylabel("Amp")
+        # set x tick labels to only the start point and the end point
+        ax[i + 1, 0].set_xticks([ps[0, 0], ps[-1, 0]])
+        ax[i + 1, 0].xaxis.set_major_formatter(matplotlib.ticker.ScalarFormatter())
         period = selected_ps_params[i][1]
         phase_list, flux_list = fold_lightcurve(lc_data, period)
         for band, (phase, flux) in enumerate(zip(phase_list, flux_list)):
             new_phase, new_flux = bin_timeseries(phase, flux, 512)
-            ax[i + 1, 1].plot(new_phase, new_flux, ".", ms=3, color=multiband_colors[int(band)+1])
+            ax[i + 1, 1].plot(
+                new_phase,
+                new_flux,
+                ".",
+                ms=np.round(10 / np.log10(len(new_phase)+10), 1),
+                color=multiband_colors[int(band) + 1],
+            )
         # show parameters
-        ax[i + 1, 1].set_title(f"{selected_ps_labels[i]} ({period:.2f} days)", loc='right', pad=0)
+        ax[i + 1, 1].set_title(
+            f"{selected_ps_labels[i]} ({period:.2f} days)", loc="right", pad=0
+        )
 
     # all the y-axis are scientific notation
-    for a in ax.flatten():
+    for a in ax[:, 1]:
         a.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+
+    for a in ax[:, 0]:
+        a.minorticks_off()
 
     # add lables for the last pannel
     ax[-1, 0].set_xlabel("Frequency (day$^{-1}$)")
