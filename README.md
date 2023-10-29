@@ -1,6 +1,8 @@
-# Deep LC
+# Deep-LC
 
 ``Deep-LC``  is open-source and intended for the classification of light curves in general. It has the ability to automatically zoom in the light curve and power spectrum to obtain local features.
+
+![](docs/source/lc.gif)
 
 ## Introduction
 
