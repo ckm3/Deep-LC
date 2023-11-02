@@ -582,7 +582,7 @@ class parameter_component(nn.Module):
     def __init__(self, nclasses=7):
         super(parameter_component, self).__init__()
         self.fc = nn.Sequential(
-            nn.Linear(10, 256),
+            nn.LazyLinear(256),
             nn.ReLU(inplace=True),
             nn.Linear(256, 128),
             nn.ReLU(inplace=True),
@@ -597,9 +597,10 @@ class combined_net(nn.Module):
     def __init__(self, nclasses=7):
         super(combined_net, self).__init__()
         self.net = nn.Sequential(
-            nn.Linear(
-                (512 + 3) * (CAT_NUM + 1) + (512 + 3) * (CAT_NUM + 1) + 512, 2048
-            ),
+            nn.LazyLinear(2048),
+            # nn.Linear(
+            #     (512 + 3) * (CAT_NUM + 1) + (512 + 3) * (CAT_NUM + 1) + 512, 2048
+            # ),
             nn.ReLU(inplace=True),
             nn.Linear(2048, 1024),
             nn.ReLU(inplace=True),
