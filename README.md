@@ -44,7 +44,7 @@ prediction, figs = dl_combined.predict(lc, show_intermediate_results=True)
 
 ```
 
-Please visit the [quickstart page](https://deep-lc.readthedocs.io/en/latest/Quickstart.html) for details.
+Please visit the [quickstart page](https://deep-lightcurve.readthedocs.io/en/latest/notebooks/Quickstart.html) for details.
 
 ## Citing
 

@@ -2,3 +2,4 @@
 src/*.ipynb
 docs/build
 *.egg-info
+dist
