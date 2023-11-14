@@ -18,6 +18,8 @@ extensions = ["nbsphinx"]
 
 templates_path = ['_templates']
 exclude_patterns = []
+nbsphinx_execute = 'never'
+nbsphinx_allow_errors = True
 
 
 
