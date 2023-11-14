@@ -1,0 +1,6 @@
+include LICENSE README.md
+include src/deep_lc/*.py
+exclude docs/*
+include docs/source/lc.gif
+include docs/source/ps.gif
+exclude tests/*

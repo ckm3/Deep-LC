@@ -1,0 +1,33 @@
+# pyproject.toml
+
+[build-system]
+requires      = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "Deep-Lightcurve"
+version = "0.1.0"
+description = "A general Light curve classification framework based on deep learning"
+readme = "README.md"
+authors = [{ name = "Kaiming Cui", email = "cuikaiming@sjtu.edu.cn" }]
+license = { file = "LICENSE" }
+classifiers = [
+        "Development Status :: 5 - Production/Stable",
+        "Intended Audience :: Science/Research",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python :: 3",
+        "Topic :: Scientific/Engineering :: Astronomy",
+        "Topic :: Scientific/Engineering :: Physics"]
+dependencies = [
+    "torch",
+    "torchvision",
+    "gatspy",
+    'lightkurve>=2.0',
+]
+requires-python = ">=3.6"
+
+[project.optional-dependencies]
+dev = ["black", "bumpver", "isort", "pip-tools", "pytest"]
+
+[project.urls]
+Homepage = "https://github.com/ckm3/Deep-LC"
