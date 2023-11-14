@@ -1,8 +1,5 @@
 import numpy as np
-import os
-import pandas as pd
 import torch
-from pathlib import Path
 from torchvision import transforms
 from astropy.timeseries import LombScargle
 from gatspy import periodic
