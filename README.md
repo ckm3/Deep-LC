@@ -1,6 +1,6 @@
 # Deep-LC
 
-![PyPI](https://img.shields.io/pypi/v/deep-lightcurve?style=flat)
+![PyPI](https://img.shields.io/pypi/v/deep-lightcurve?style=flat) [![Image](https://img.shields.io/badge/arXiv-2311.08080-blue)](https://arxiv.org/abs/2311.08080)
 
 ``Deep-LC``  is open-source and intended for the classification of light curves (LCs) in a gernaral purpose. It utilizes a weakly supervised object detection algorithm to automatically zoom in on the LC and power spectrum (PS) to extract local features. This eliminates the need for manual feature extraction and allows it to be applied to both space- and ground-based observations, as well as multiband LCs with large gaps and nonuniform sampling.
 
@@ -49,3 +49,13 @@ Please visit the [quickstart page](https://deep-lightcurve.readthedocs.io/en/lat
 ## Citing
 
 If you are using Deep-LC in your research, please cite our paper and add a footnote of this Github project.
+```
+@misc{cui2023identifying,
+      title={Identifying Light-curve Signals with a Deep Learning Based Object Detection Algorithm. II. A General Light Curve Classification Framework}, 
+      author={Kaiming Cui and D. J. Armstrong and Fabo Feng},
+      year={2023},
+      eprint={2311.08080},
+      archivePrefix={arXiv},
+      primaryClass={astro-ph.IM}
+}
+```
