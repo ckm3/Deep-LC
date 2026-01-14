@@ -3,3 +3,4 @@ src/*.ipynb
 docs/build
 *.egg-info
 dist
+uv.lock

@@ -50,12 +50,22 @@ Please visit the [quickstart page](https://deep-lightcurve.readthedocs.io/en/lat
 
 If you are using Deep-LC in your research, please cite our paper and add a footnote of this Github project.
 ```
-@misc{cui2023identifying,
-      title={Identifying Light-curve Signals with a Deep Learning Based Object Detection Algorithm. II. A General Light Curve Classification Framework}, 
-      author={Kaiming Cui and D. J. Armstrong and Fabo Feng},
-      year={2023},
-      eprint={2311.08080},
-      archivePrefix={arXiv},
-      primaryClass={astro-ph.IM}
+@ARTICLE{Cui:2024:ApJS,
+       author = {{Cui}, Kaiming and {Armstrong}, D.~J. and {Feng}, Fabo},
+        title = "{Identifying Light-curve Signals with a Deep-learning-based Object Detection Algorithm. II. A General Light-curve Classification Framework}",
+      journal = {\apjs},
+     keywords = {Light curve classification, Astronomy data analysis, Convolutional neural networks, Variable stars, Transient detection, 1954, 1858, 1938, 1761, 1957, Astrophysics - Instrumentation and Methods for Astrophysics, Astrophysics - High Energy Astrophysical Phenomena, Astrophysics - Solar and Stellar Astrophysics, Computer Science - Computer Vision and Pattern Recognition},
+         year = 2024,
+        month = oct,
+       volume = {274},
+       number = {2},
+          eid = {29},
+        pages = {29},
+          doi = {10.3847/1538-4365/ad62fd},
+archivePrefix = {arXiv},
+       eprint = {2311.08080},
+ primaryClass = {astro-ph.IM},
+       adsurl = {https://ui.adsabs.harvard.edu/abs/2024ApJS..274...29C},
+      adsnote = {Provided by the SAO/NASA Astrophysics Data System}
 }
 ```

@@ -58,7 +58,7 @@ class DeepLC:
         if combined_model:
             self.loaded_model = "Combined"
             if isinstance(combined_model, str):
-                self.model_dict = torch.load(combined_model, map_location=self.device)
+                self.model_dict = torch.load(combined_model, map_location=self.device, weights_only=False)
             elif isinstance(combined_model, dict):
                 self.model_dict = combined_model
             
@@ -92,7 +92,7 @@ class DeepLC:
         elif lc_component_model:
             self.loaded_model = "LC Component"
             if isinstance(lc_component_model, str):
-                self.model_dict = torch.load(lc_component_model, map_location=self.device)
+                self.model_dict = torch.load(lc_component_model, map_location=self.device, weights_only=False)
             elif isinstance(lc_component_model, dict):
                 self.model_dict = lc_component_model
             

@@ -6,10 +6,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "Deep-Lightcurve"
-version = "0.1.0"
+version = "0.1.1"
 description = "A general Light curve classification framework based on deep learning"
 readme = "README.md"
-authors = [{ name = "Kaiming Cui", email = "cuikaiming@sjtu.edu.cn" }]
+authors = [{ name = "Kaiming Cui", email = "cuikaiming6@gmail.com" }]
 license = { file = "LICENSE" }
 classifiers = [
         "Development Status :: 5 - Production/Stable",
@@ -22,9 +22,10 @@ dependencies = [
     "torch",
     "torchvision",
     "gatspy",
-    'lightkurve>=2.0',
+    "lightkurve>=2.0",
+    "lightkurve-ext>=0.1.1",
 ]
-requires-python = ">=3.6"
+requires-python = ">=3.8"
 
 [project.optional-dependencies]
 dev = ["black", "bumpver", "isort", "pip-tools", "pytest"]
