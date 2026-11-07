@@ -113,7 +113,7 @@ class DeepLC:
         elif ps_component_model:
             self.loaded_model = "PS Component"
             if isinstance(ps_component_model, str):
-                self.model_dict = torch.load(ps_component_model, map_location=self.device)
+                self.model_dict = torch.load(ps_component_model, map_location=self.device, weights_only=False)
             elif isinstance(ps_component_model, dict):
                 self.model_dict = ps_component_model
             
@@ -134,7 +134,7 @@ class DeepLC:
         elif parameter_model:
             self.loaded_model = "Parameter Component"
             if isinstance(parameter_model, str):
-                self.model_dict = torch.load(parameter_model)
+                self.model_dict = torch.load(parameter_model, map_location=self.device, weights_only=False)
             elif isinstance(parameter_model, dict):
                 self.model_dict = parameter_model
             
